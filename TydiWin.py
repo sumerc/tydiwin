@@ -1,4 +1,3 @@
-
 import os
 import sys
 import keyboard
@@ -11,7 +10,11 @@ import win32gui
 import win32con
 
 APP_NAME = 'TydiWin'
-CONF_FILE_NAME = 'conf.txt'
+EXEC_PATH = os.path.dirname(sys.executable)
+CONF_FILE_NAME = os.path.join(EXEC_PATH, 'conf.txt')
+_grid_index = 0
+_rotate_index = 0
+_prev_layout = None
 
 class NoMoreRotations(Exception): pass
 
@@ -21,7 +24,7 @@ logger = logging.getLogger(APP_NAME)
 logger.setLevel(logging.DEBUG)
 sys.stderr = sys.stdout # supress the error show popup at close
 
-fh = logging.FileHandler("log.txt")
+fh = logging.FileHandler(os.path.join(EXEC_PATH, "log.txt"))
 file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message).4096s')
 fh.setFormatter(file_formatter)
 logger.addHandler(fh)
@@ -383,10 +386,6 @@ def move_window_to_next_mon(wnd):
     if wnd_maximized_before:
         wnd.maximize()
 
-_grid_index = 0
-_rotate_index = 0
-_prev_layout = None
-
 def move_to_next_monitor():
     # may be conf. file is changed, (i.e: keymaps changed)
     load_configuration_module()
@@ -438,18 +437,6 @@ def tidy_monitor():
 
     _prev_layout = MyMonitorLayout().current_monitor.window_layout
 
-# add autorun entry
-autorun.add(APP_NAME, sys.executable)
-
-# load conf. file to install hotkeys
-load_configuration_module()
-
-# add system tray icon
-import pystray
-icon = pystray.Icon(APP_NAME)
-image = im = Image.open(os.getcwd() + "\\icon.png")
-icon.icon = image
-
 def setup(icon):
     icon.visible = True
 
@@ -468,14 +455,29 @@ def toggle_start_with_os():
 def open_settings():
     os.startfile(CONF_FILE_NAME) # TODO: This is windows specific...
 
-icon.menu = pystray.Menu(
-    pystray.MenuItem('Start on boot', toggle_start_with_os, checked=lambda _: autorun.exists(APP_NAME)),
-    pystray.MenuItem('Edit Settings', open_settings),
-    pystray.Menu.SEPARATOR,
-    pystray.MenuItem('Exit', exit_app), 
-    )
-icon.run(setup)
-
-
-
 # TODO: Same instance cannot run
+
+try:
+    # add autorun entry
+    autorun.add(APP_NAME, sys.executable)
+
+    # load conf. file to install hotkeys
+    load_configuration_module()
+
+    # add system tray icon
+    # NOTE: Do not move this import to top, hotkeys will not work somehow!!!!
+    import pystray 
+    icon = pystray.Icon(APP_NAME)
+    image = im = Image.open(os.path.join(EXEC_PATH, "icon.png"))
+    icon.icon = image
+
+    icon.menu = pystray.Menu(
+        pystray.MenuItem('Start on boot', toggle_start_with_os, checked=lambda _: autorun.exists(APP_NAME)),
+        pystray.MenuItem('Edit Settings', open_settings),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem('Exit', exit_app), 
+        )
+    icon.run(setup)
+except Exception as e:
+    logger.exception(e)
+    logger.error("TydiWin closed with exception.")
