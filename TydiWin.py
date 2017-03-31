@@ -2,6 +2,7 @@ import os
 import sys
 import keyboard
 import autorun
+import psutil
 from enum import IntEnum
 from PIL import Image
 
@@ -17,6 +18,7 @@ _rotate_index = 0
 _prev_layout = None
 
 class NoMoreRotations(Exception): pass
+class MultipleInstancesNotAllowed(Exception): pass
 
 # create the logger
 import logging
@@ -307,35 +309,6 @@ class Monitor(object):
     def __repr__(self):
         return "%s, next_left=%s" % (self.rect, self.next.rect.left)
 
-# TODO: Remove if not used 
-"""
-class MyLayoutHistory(object):
-    def __init__(self):
-        self._history = []
-        self.rotate_count = 0
-        self.grid_conf_index = 0
-        
-        # TODO: Serialize 
-        # TODO: Should have a limit as this will be serialized.
-
-    @property
-    def last(self):
-        if len(self._history) == 0:
-            return None
-        return self._history[-1]
-
-    def push(self, layout):
-        if self.last != layout:
-            self._history.append(layout)
-
-    def next_grid_conf_index(self, wnd_count):
-        grid_conf_count = 1
-        return (self.grid_conf_index+1) % (grid_conf_count)
-
-    def clear(self):
-        self._h = []
-"""
-
 def get_monitor_from_rect(rect):
     """Selects the monitor based on the maximum intersecting area of the rect to 
     the monitor. This is because some windows x/y coords can be out of bounds of 
@@ -356,7 +329,7 @@ def get_monitor_from_rect(rect):
 
 def move_window_to_next_mon(wnd):
 
-    # TODO: NOT-TESTED: top-down layouts, 3 screens..etc.
+    # TODO: NOT-TESTED: 3 screens..etc.
 
     # if window is maximized, first restore it and then move and maximize
     wnd_maximized_before = False
@@ -453,11 +426,14 @@ def toggle_start_with_os():
         logger.info("Start at boot enabled.")
 
 def open_settings():
-    os.startfile(CONF_FILE_NAME) # TODO: This is windows specific...
-
-# TODO: Same instance cannot run
+    os.startfile(CONF_FILE_NAME) # TODO: This is windows specific...      
 
 try:
+    # check if TydiWin is already running
+    for p in psutil.process_iter():
+        if p.name() == "TydiWin.exe" and os.getpid() != p.pid:
+            raise MultipleInstancesNotAllowed('Multiple instances of TydiWin is not allowed.')
+
     # add autorun entry
     autorun.add(APP_NAME, sys.executable)
 
@@ -480,4 +456,5 @@ try:
     icon.run(setup)
 except Exception as e:
     logger.exception(e)
-    logger.error("TydiWin closed with exception.")
+finally:
+    logger.info("TydiWin closed.")
