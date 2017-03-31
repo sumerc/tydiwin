@@ -1,0 +1,55 @@
+
+# NOTE: Do not delete these are used by the application internally
+import builtins
+MonitorWidth = builtins._MonitorWidth
+MonitorHeight = builtins._MonitorHeight
+
+# TODO: If Grid orders are clockwise it will be more intuitive. 
+
+GRIDS = {
+    1: [ # window count
+        { 
+            0: (0, 0, MonitorWidth, MonitorHeight),
+        }, 
+    ],
+    2: [ # window count
+        { # tile horizontal
+            0: (0, 0, MonitorWidth/2, MonitorHeight,), 
+            1: (MonitorWidth/2, 0, MonitorWidth/2, MonitorHeight,),
+        }, 
+        { # tile vertical
+            0: (0, 0, MonitorWidth, MonitorHeight/2,),
+            1: (0, MonitorHeight/2, MonitorWidth, MonitorHeight/2,),
+        },
+    ],
+    3: [ # window count
+        {
+            0: (0, 0, MonitorWidth/3, MonitorHeight/2,), 
+            1: (0, MonitorHeight/2, MonitorWidth/3, MonitorHeight/2,),
+            2: (MonitorWidth/3, 0, 2*(MonitorWidth/3), MonitorHeight),
+        }, 
+        {
+            0: (0, 0, MonitorWidth, MonitorHeight/3,), 
+            1: (0, MonitorHeight/3, MonitorWidth, MonitorHeight/3,),
+            2: (0, 2*(MonitorHeight/3), MonitorWidth, MonitorHeight/3),
+        }, 
+        {
+            0: (0, 0, MonitorWidth/3, MonitorHeight), 
+            1: (MonitorWidth/3, 0, MonitorWidth/3, MonitorHeight),
+            2: (2*(MonitorWidth/3), 0, MonitorWidth/3, MonitorHeight),
+        }, 
+    ],
+    4: [ # window count
+        {
+            0: (0, 0, MonitorWidth/2, MonitorHeight/2), 
+            1: (MonitorWidth/2, 0, MonitorWidth/2, MonitorHeight/2),
+            2: (0, MonitorHeight/2, MonitorWidth/2, MonitorHeight/2),
+            3: (MonitorWidth/2, MonitorHeight/2, MonitorWidth/2, MonitorHeight/2),
+        }, 
+    ]
+}
+
+KEYMAPS = {
+    "move_to_next_monitor" : "windows+alt",
+    "tidy_monitor" : "windows+t",
+}
