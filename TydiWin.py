@@ -187,7 +187,7 @@ class MyMonitorLayout(object):
         if len(self._monitors) > 1:
             self._monitors[0].set_next(self._monitors[1])
 
-        logger.debug("Current Monitor Layout: %s" % (self._monitors))
+        #logger.debug("Current Monitor Layout: %s" % (self._monitors))
 
     def __iter__(self):
         for m in self._monitors:
@@ -410,9 +410,6 @@ def tidy_monitor():
 
     _prev_layout = MyMonitorLayout().current_monitor.window_layout
 
-def setup(icon):
-    icon.visible = True
-
 def exit_app():
     keyboard.clear_all_hotkeys()
     icon.stop()
@@ -453,7 +450,27 @@ try:
         pystray.Menu.SEPARATOR,
         pystray.MenuItem('Exit', exit_app), 
         )
-    icon.run(setup)
+    icon.visible = True
+
+    import ctypes
+    from win32con import HSHELL_WINDOWCREATED
+    from win32con import HSHELL_WINDOWDESTROYED
+    r = ctypes.windll.user32.RegisterShellHookWindow(icon._hwnd)
+    while(True):
+        message = win32gui.GetMessage(icon._hwnd, 0, 0)
+        if message[1][2] == HSHELL_WINDOWCREATED:
+            print("Window CREATED")
+            print(message)
+        if message[1][2] == HSHELL_WINDOWDESTROYED:
+            # if a window is destroyed, and the monitor is same as the last tidied
+            # layout, then save the coords of the window
+            try:
+                cur_layout = MyMonitorLayout().current_monitor.window_layout
+                if _prev_layout == cur_layout:
+                    print("Window DESTROYED from a tidied monitor...")
+            except Exception as e:
+                logger.exception(e) # TODO: why we raise exception here...look.
+
 except Exception as e:
     logger.exception(e)
 finally:
