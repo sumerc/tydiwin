@@ -208,8 +208,8 @@ def rotate(l, n):
     return l[-n:] + l[:-n]
 
 class MyWindowLayout(object):
-    def __init__(self, monitor):
-        self.windows = {}
+    def __init__(self, monitor, enum_wnds=True):
+        self.windows = {} # { hwnd: MyWindow() }
         self.windows_as_list = []
         self.monitor = monitor
 
@@ -235,15 +235,38 @@ class MyWindowLayout(object):
                     #logger.debug("WE FIND Window(%s) in current Monitor" % (wnd.text))
                     layout.add_window(wnd) 
 
-        win32gui.EnumWindows(enum_wnd, self)
+        if enum_wnds:
+            win32gui.EnumWindows(enum_wnd, self)
 
     def add_window(self, wnd):
         self.windows[wnd.hwnd] = wnd
         self.windows_as_list.append(wnd.hwnd)
 
+    def remove_window(self, hwnd):
+        del self.windows[hwnd]
+        self.windows_as_list.remove(hwnd)
+
     @property
     def window_count(self):
         return len(self.windows)
+
+    def difference(self, other):
+        r = MyWindowLayout(self.monitor, enum_wnds=False)
+        for k,v in self.windows.items():
+            if k not in other.windows:
+                r.add_window(v)
+                continue
+            if other.windows[k] != v:
+                r.add_window(v)
+                continue
+        return r
+
+    def intersection(self, other):
+        r = MyWindowLayout(self.monitor, enum_wnds=False)
+        for k,v in self.windows.items():
+            if k in other.windows and other.windows[k] == v:
+                r.add_window(v)
+        return r
 
     def __eq__(self, other):
         if other is None or len(self.windows) != len(other.windows):
@@ -282,8 +305,11 @@ class MyWindowLayout(object):
         self.windows_as_list = rotate(self.windows_as_list, val)
         
     def __repr__(self):
-        return str(self.windows)
-
+        r = ''
+        for hwnd,wnd in self.windows.items():
+            r += "%s:%s" % (hwnd, wnd) + "\n\n"
+        return r
+        
 class Monitor(object):
     def __init__(self, rect, working_rect):
         self.rect = MyRect(rect)
@@ -459,19 +485,41 @@ try:
     while(True):
         message = win32gui.GetMessage(icon._hwnd, 0, 0)
         if message[1][2] == HSHELL_WINDOWCREATED:
+            """
+            Algorithm: If a window is created, remove that window from the current
+            layout and if cur_layout.window_count > 0 then run prev_layout.intersection(cur_layout).
+            if intersection == cur_layout itself, then this means cur_layout is a 
+            subset of prev_layout and let's substitute the new window to a place
+            of one of the closed(or moved to another monitor) windows in the prev_layout
+            """
             print("Window CREATED")
-            print(message)
-        if message[1][2] == HSHELL_WINDOWDESTROYED:
-            # if a window is destroyed, and the monitor is same as the last tidied
-            # layout, then save the coords of the window
-            try:
-                cur_layout = MyMonitorLayout().current_monitor.window_layout
-                if _prev_layout == cur_layout:
-                    print("Window DESTROYED from a tidied monitor...")
-            except Exception as e:
-                logger.exception(e) # TODO: why we raise exception here...look.
+            new_wnd_hwnd = message[1][3]
+            cur_layout = MyMonitorLayout().current_monitor.window_layout
+            cur_layout.remove_window(new_wnd_hwnd)
+
+            if cur_layout.window_count == 0:
+                continue
+            if _prev_layout is None:
+                continue
+            # layout should have at least one or more windows closed(or moved 
+            # to different monitor)
+            if cur_layout.window_count >= _prev_layout.window_count:
+                continue
+
+            intersected_layout = _prev_layout.intersection(cur_layout)
+            if cur_layout == intersected_layout:
+                diff_layout = _prev_layout.difference(cur_layout)
+                # get the first window in the layout and make newly created 
+                # window's position to that.
+                hwnd = diff_layout.windows_as_list[0]
+                absent_wnd_rect = diff_layout.windows[hwnd].rect
+                MyWindow(new_wnd_hwnd).set_rect(absent_wnd_rect)
+
+                # update the prev_layout
+                _prev_layout = MyMonitorLayout().current_monitor.window_layout
 
 except Exception as e:
     logger.exception(e)
 finally:
     logger.info("TydiWin closed.")
+
