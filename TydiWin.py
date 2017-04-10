@@ -492,9 +492,15 @@ try:
             subset of prev_layout and let's substitute the new window to a place
             of one of the closed(or moved to another monitor) windows in the prev_layout
             """
-            print("Window CREATED")
+            
             new_wnd_hwnd = message[1][3]
-            cur_layout = MyMonitorLayout().current_monitor.window_layout
+            try:
+                cur_layout = MyMonitorLayout().current_monitor.window_layout
+            except Exception as e:
+                # this sometimes fail.
+                logger.exception(e)
+                continue
+
             cur_layout.remove_window(new_wnd_hwnd)
 
             if cur_layout.window_count == 0:
@@ -516,7 +522,7 @@ try:
                 MyWindow(new_wnd_hwnd).set_rect(absent_wnd_rect)
 
                 # update the prev_layout
-                _prev_layout = MyMonitorLayout().current_monitor.window_layout
+                #_prev_layout = MyMonitorLayout().current_monitor.window_layout
 
 except Exception as e:
     logger.exception(e)
